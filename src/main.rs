@@ -17,7 +17,7 @@ struct Args {
 }
 
 fn count_bytes(file_path: PathBuf) -> Result<u64, std::io::Error> {
-    let input_file = std::fs::File::open(&file_path)?;
+    let input_file = std::fs::File::open(file_path)?;
     let size_in_bytes = input_file.metadata()?.len();
 
     Ok(size_in_bytes)
@@ -42,30 +42,29 @@ fn count_words(file_path: PathBuf) -> Result<usize, std::io::Error> {
 fn main() -> Result<(), std::io::Error> {
     let args = Args::parse();
 
-    match args {
-        Args {
-            file,
-            count,
-            words,
-            lines,
-        } => {
-            if count {
-                let size_in_bytes = count_bytes(file.to_path_buf())?;
-                println!("{size_in_bytes} {}", file.to_string_lossy());
-            }
-
-            if lines {
-                let lines = count_lines(file.to_path_buf())?;
-                println!("{lines} {}", file.to_string_lossy());
-            }
-
-            if words {
-                let word_count = count_words(file.to_path_buf())?;
-                println!("{word_count} {}", file.to_string_lossy());
-            }
-
-            Ok(())
+    let Args {
+        file,
+        count,
+        words,
+        lines,
+    } = args;
+    {
+        if count {
+            let size_in_bytes = count_bytes(file.to_path_buf())?;
+            println!("{size_in_bytes} {}", file.to_string_lossy());
         }
+
+        if lines {
+            let lines = count_lines(file.to_path_buf())?;
+            println!("{lines} {}", file.to_string_lossy());
+        }
+
+        if words {
+            let word_count = count_words(file.to_path_buf())?;
+            println!("{word_count} {}", file.to_string_lossy());
+        }
+
+        Ok(())
     }
 }
 
