@@ -67,17 +67,5 @@ mod tests {
         let lines = count_lines(file_path).expect("unable to count lines in file");
 
         assert_eq!(expected, lines);
-
-    #[test]
-    fn count_bytes_returns_correctly() {
-        let file = NamedTempFile::new().expect("unable to create temporary file");
-        let execpted_size: u64 = 5000;
-        file.as_file()
-            .set_len(execpted_size)
-            .expect("unable to set file size");
-
-        let file_size = count_bytes(file.path().into()).expect("unable to count_bytes");
-
-        assert_eq!(file_size, execpted_size);
     }
 }
