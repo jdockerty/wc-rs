@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[arg(short, long)]
-    file: PathBuf,
+    /// Input file to execute actions on.
+    input_file: Option<PathBuf>,
 
     #[arg(short, long, help = "count the number of bytes in a file")]
     count: bool,
@@ -43,29 +43,33 @@ fn main() -> Result<(), std::io::Error> {
     let args = Args::parse();
 
     let Args {
-        file,
+        input_file,
         count,
         words,
         lines,
     } = args;
-    {
-        if count {
-            let size_in_bytes = count_bytes(file.to_path_buf())?;
-            println!("{size_in_bytes} {}", file.to_string_lossy());
-        }
 
-        if lines {
-            let lines = count_lines(file.to_path_buf())?;
-            println!("{lines} {}", file.to_string_lossy());
-        }
+    let input_file = match input_file {
+        Some(file) => file,
+        None => PathBuf::from("-"),
+    };
 
-        if words {
-            let word_count = count_words(file.to_path_buf())?;
-            println!("{word_count} {}", file.to_string_lossy());
-        }
-
-        Ok(())
+    if count {
+        let size_in_bytes = count_bytes(input_file.clone())?;
+        println!("{size_in_bytes} {}", input_file.clone().to_string_lossy());
     }
+
+    if lines {
+        let lines = count_lines(input_file.clone())?;
+        println!("{lines} {}", input_file.clone().to_string_lossy());
+    }
+
+    if words {
+        let word_count = count_words(input_file.clone())?;
+        println!("{word_count} {}", input_file.clone().to_string_lossy());
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
