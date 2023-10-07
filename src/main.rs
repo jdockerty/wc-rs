@@ -88,16 +88,26 @@ fn main() -> Result<(), std::io::Error> {
         println!("{char_count} {}", input_file.clone().to_string_lossy());
     }
 
+    let line_count = count_lines(input_file.clone())?;
+    let word_count = count_words(input_file.clone())?;
+    let byte_count = count_bytes(input_file.clone())?;
+
+    println!(
+        "{line_count} {word_count} {byte_count} {}",
+        input_file.clone().to_string_lossy()
+    );
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    const TEST_FILE: &str = "testdata/file.txt";
 
     #[test]
     fn count_bytes_returns_correctly() {
-        let file_path = PathBuf::from("testdata/file.txt");
+        let file_path = PathBuf::from(TEST_FILE);
         let expected_size: u64 = 342190;
 
         let file_size = count_bytes(file_path).expect("unable to count_bytes");
@@ -107,7 +117,7 @@ mod tests {
 
     #[test]
     fn count_lines_returns_correctly() {
-        let file_path = PathBuf::from("testdata/file.txt");
+        let file_path = PathBuf::from(TEST_FILE);
 
         let expected: usize = 7145;
 
@@ -118,7 +128,7 @@ mod tests {
 
     #[test]
     fn count_words_returns_correctly() {
-        let file_path = PathBuf::from("testdata/file.txt");
+        let file_path = PathBuf::from(TEST_FILE);
 
         let expected: usize = 58164;
 
@@ -129,7 +139,7 @@ mod tests {
 
     #[test]
     fn count_chars_returns_correctly() {
-        let file_path = PathBuf::from("testdata/file.txt");
+        let file_path = PathBuf::from(TEST_FILE);
 
         let expected: usize = 339292;
 
