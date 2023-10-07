@@ -32,20 +32,20 @@ struct Stats {
 }
 
 fn read_contents<R: Read>(reader: R) -> Result<Stats, std::io::Error> {
-    let mut buf = BufReader::new(reader);
-    let mut buffer = Vec::new();
     let mut total_bytes = 0;
     let mut line_count = 0;
     let mut word_count = 0;
     let mut char_count = 0;
 
-    while buf.read_until(b'\n', &mut buffer)? > 0 {
-        let line = String::from_utf8(buffer.clone()).unwrap();
-        word_count += line.split_ascii_whitespace().count();
-        char_count += line.chars().count();
-        total_bytes += buffer.len();
+    let mut buf = BufReader::new(reader);
+    let mut line = Vec::new();
+    while buf.read_until(b'\n', &mut line)? > 0 {
+        let parsed_line = String::from_utf8_lossy(&line);
+        word_count += parsed_line.split_ascii_whitespace().count();
+        char_count += parsed_line.chars().count();
+        total_bytes += parsed_line.len();
         line_count += 1;
-        buffer.clear();
+        line.clear();
     }
 
     Ok(Stats {
