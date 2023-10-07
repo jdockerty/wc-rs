@@ -118,6 +118,17 @@ mod tests {
     use std::fs::File;
     const TEST_FILE: &str = "testdata/file.txt";
 
+    // Implementation of PartialEq allows the use of assert_eq! macro
+    // for a full test of the Stats struct.
+    impl PartialEq for Stats {
+        fn eq(&self, other: &Stats) -> bool {
+            self.lines == other.lines
+                && self.bytes == other.bytes
+                && self.words == other.words
+                && self.chars == other.chars
+        }
+    }
+
     #[test]
     fn count_bytes_returns_correctly() {
         let file = File::open(TEST_FILE).expect("unable to open test file");
@@ -153,11 +164,25 @@ mod tests {
     #[test]
     fn count_chars_returns_correctly() {
         let file = File::open(TEST_FILE).expect("unable to open test file");
-
         let expected: usize = 339292;
 
         let stats = read_contents(file).expect("unable to read contents");
 
         assert_eq!(expected, stats.chars);
+    }
+
+    #[test]
+    fn count_read_contents_correctly() {
+        let file = File::open(TEST_FILE).expect("unable to open test file");
+        let expected = Stats {
+            chars: 339292,
+            words: 58164,
+            lines: 7145,
+            bytes: 342190,
+        };
+
+        let stats = read_contents(file).expect("unable to read contents");
+
+        assert_eq!(expected, stats);
     }
 }
