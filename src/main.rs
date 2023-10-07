@@ -73,7 +73,7 @@ fn main() -> Result<(), std::io::Error> {
         chars,
     } = args;
 
-    let input_path = input_file.clone().unwrap_or(PathBuf::from("-"));
+    let input_path = &input_file.clone().unwrap_or(PathBuf::from("-"));
     let mut input: Box<dyn Read + 'static> = if input_path.as_os_str() == "-" {
         Box::new(std::io::stdin())
     } else {
@@ -85,29 +85,27 @@ fn main() -> Result<(), std::io::Error> {
         }
     };
 
-    let filename = input_file.clone().unwrap_or("".into());
-
     if count {
         let size_in_bytes = count_bytes(input)?;
-        println!("{size_in_bytes} {}", filename.display());
+        println!("{size_in_bytes} {}", input_path.display());
         return Ok(());
     }
 
     if lines {
         let lines = count_lines(input)?;
-        println!("{lines} {}", filename.display());
+        println!("{lines} {}", input_path.display());
         return Ok(());
     }
 
     if words {
         let word_count = count_words(input)?;
-        println!("{word_count} {}", filename.display());
+        println!("{word_count} {}", input_path.display());
         return Ok(());
     }
 
     if chars {
         let char_count = count_chars(input)?;
-        println!("{char_count} {}", filename.display());
+        println!("{char_count} {}", input_path.display());
         return Ok(());
     }
 
@@ -117,7 +115,7 @@ fn main() -> Result<(), std::io::Error> {
 
     println!(
         "{line_count} {word_count} {byte_count} {}",
-        filename.display()
+        input_path.display()
     );
 
     Ok(())
