@@ -1,6 +1,6 @@
 use clap::Parser;
 use std::{
-    io::{Read, BufReader, BufRead},
+    io::{BufRead, BufReader, Read},
     path::PathBuf,
 };
 use utf8_chars::BufReadCharsExt;
