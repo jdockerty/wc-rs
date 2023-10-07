@@ -6,14 +6,27 @@ struct Args {
     /// Input file to execute actions on.
     input_file: Option<PathBuf>,
 
-    #[arg(short, long, help = "count the number of bytes in a file")]
+    #[arg(short, long, help = "count the number of bytes")]
     count: bool,
 
-    #[arg(short, long, help = "count the number of lines in a file")]
+    #[arg(short, long, help = "count the number of lines")]
     lines: bool,
 
-    #[arg(short, long, help = "count the number of words in a file")]
+    #[arg(short, long, help = "count the number of words")]
     words: bool,
+
+    #[arg(short = 'm', long, help = "count the number of characters")]
+    chars: bool,
+}
+
+fn count_chars(file_path: PathBuf) -> Result<usize, std::io::Error> {
+    let file = std::fs::read_to_string(file_path)?;
+
+    // I think the usage of graphemes is actually "better", but chars().count()
+    // comes out with the same output as the regular GNU wc utility, so for testability
+    // and completeness, we'll go with that.
+    // Ok(file.graphemes(true).count())
+    Ok(file.chars().count())
 }
 
 fn count_bytes(file_path: PathBuf) -> Result<u64, std::io::Error> {
@@ -47,6 +60,7 @@ fn main() -> Result<(), std::io::Error> {
         count,
         words,
         lines,
+        chars,
     } = args;
 
     let input_file = match input_file {
@@ -67,6 +81,11 @@ fn main() -> Result<(), std::io::Error> {
     if words {
         let word_count = count_words(input_file.clone())?;
         println!("{word_count} {}", input_file.clone().to_string_lossy());
+    }
+
+    if chars {
+        let char_count = count_chars(input_file.clone())?;
+        println!("{char_count} {}", input_file.clone().to_string_lossy());
     }
 
     Ok(())
@@ -106,5 +125,16 @@ mod tests {
         let words = count_words(file_path).expect("unable to count lines in file");
 
         assert_eq!(expected, words);
+    }
+
+    #[test]
+    fn count_chars_returns_correctly() {
+        let file_path = PathBuf::from("testdata/file.txt");
+
+        let expected: usize = 339292;
+
+        let chars = count_chars(file_path).expect("unable to count lines in file");
+
+        assert_eq!(expected, chars);
     }
 }
