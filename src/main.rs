@@ -3,7 +3,6 @@ use std::{
     io::{BufRead, BufReader, Read},
     path::PathBuf,
 };
-use utf8_chars::BufReadCharsExt;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -23,43 +22,38 @@ struct Args {
     chars: bool,
 }
 
-fn count_chars<R: Read>(input: R) -> Result<usize, std::io::Error> {
-    let mut buf = BufReader::new(input);
-
-    // I think the usage of graphemes is actually "better", but chars().count()
-    // comes out with the same output as the regular GNU wc utility, so for testability
-    // and completeness, we'll go with that.
-    // Ok(file.graphemes(true).count())
-    Ok(buf.chars().count())
+#[derive(Debug)]
+/// Statistics for one or more input files.
+struct Stats {
+    bytes: usize,
+    chars: usize,
+    words: usize,
+    lines: usize,
 }
 
-fn count_bytes<R: Read>(input: R) -> Result<usize, std::io::Error> {
-    let mut buf = BufReader::new(input);
-    let mut total_bytes = 0;
+fn read_contents<R: Read>(reader: R) -> Result<Stats, std::io::Error> {
+    let mut buf = BufReader::new(reader);
     let mut buffer = Vec::new();
+    let mut total_bytes = 0;
+    let mut line_count = 0;
+    let mut word_count = 0;
+    let mut char_count = 0;
 
     while buf.read_until(b'\n', &mut buffer)? > 0 {
+        let line = String::from_utf8(buffer.clone()).unwrap();
+        word_count += line.split_ascii_whitespace().count();
+        char_count += line.chars().count();
         total_bytes += buffer.len();
+        line_count += 1;
         buffer.clear();
     }
-    Ok(total_bytes)
-}
 
-fn count_lines<R: Read>(input: R) -> Result<usize, std::io::Error> {
-    let buf = BufReader::new(input);
-    Ok(buf.lines().count())
-}
-
-fn count_words<R: Read>(input: R) -> Result<usize, std::io::Error> {
-    let buf = BufReader::new(input);
-    let lines = buf.lines();
-
-    let mut wc = 0;
-    for line in lines {
-        wc += line?.split_whitespace().count();
-    }
-
-    Ok(wc)
+    Ok(Stats {
+        bytes: total_bytes,
+        words: word_count,
+        lines: line_count,
+        chars: char_count,
+    })
 }
 
 fn main() -> Result<(), std::io::Error> {
@@ -85,36 +79,33 @@ fn main() -> Result<(), std::io::Error> {
         }
     };
 
+    let file_stats = read_contents(&mut input)?;
+
     if count {
-        let size_in_bytes = count_bytes(input)?;
-        println!("{size_in_bytes} {}", input_path.display());
+        println!("{} {}", file_stats.bytes, input_path.display());
         return Ok(());
     }
 
     if lines {
-        let lines = count_lines(input)?;
-        println!("{lines} {}", input_path.display());
+        println!("{} {}", file_stats.lines, input_path.display());
         return Ok(());
     }
 
     if words {
-        let word_count = count_words(input)?;
-        println!("{word_count} {}", input_path.display());
+        println!("{} {}", file_stats.words, input_path.display());
         return Ok(());
     }
 
     if chars {
-        let char_count = count_chars(input)?;
-        println!("{char_count} {}", input_path.display());
+        println!("{} {}", file_stats.chars, input_path.display());
         return Ok(());
     }
 
-    let line_count = count_lines(input.by_ref())?;
-    let word_count = count_words(input.by_ref())?;
-    let byte_count = count_bytes(input.by_ref())?;
-
     println!(
-        "{line_count} {word_count} {byte_count} {}",
+        "{} {} {} {}",
+        file_stats.lines,
+        file_stats.words,
+        file_stats.bytes,
         input_path.display()
     );
 
@@ -132,9 +123,9 @@ mod tests {
         let file = File::open(TEST_FILE).expect("unable to open test file");
         let expected_size: usize = 342190;
 
-        let file_size = count_bytes(file).expect("unable to count_bytes");
+        let stats = read_contents(file).expect("unable to read contents");
 
-        assert_eq!(file_size, expected_size);
+        assert_eq!(stats.bytes, expected_size);
     }
 
     #[test]
@@ -143,9 +134,9 @@ mod tests {
 
         let expected: usize = 7145;
 
-        let lines = count_lines(file).expect("unable to count lines in file");
+        let stats = read_contents(file).expect("unable to read contents");
 
-        assert_eq!(expected, lines);
+        assert_eq!(expected, stats.lines);
     }
 
     #[test]
@@ -154,9 +145,9 @@ mod tests {
 
         let expected: usize = 58164;
 
-        let words = count_words(file).expect("unable to count lines in file");
+        let stats = read_contents(file).expect("unable to read contents");
 
-        assert_eq!(expected, words);
+        assert_eq!(expected, stats.words);
     }
 
     #[test]
@@ -165,8 +156,8 @@ mod tests {
 
         let expected: usize = 339292;
 
-        let chars = count_chars(file).expect("unable to count lines in file");
+        let stats = read_contents(file).expect("unable to read contents");
 
-        assert_eq!(expected, chars);
+        assert_eq!(expected, stats.chars);
     }
 }
