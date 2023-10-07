@@ -1,5 +1,9 @@
 use clap::Parser;
-use std::path::PathBuf;
+use std::{
+    io::{Read, BufReader, BufRead},
+    path::PathBuf,
+};
+use utf8_chars::BufReadCharsExt;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -19,34 +23,40 @@ struct Args {
     chars: bool,
 }
 
-fn count_chars(file_path: PathBuf) -> Result<usize, std::io::Error> {
-    let file = std::fs::read_to_string(file_path)?;
+fn count_chars<R: Read>(input: R) -> Result<usize, std::io::Error> {
+    let mut buf = BufReader::new(input);
 
     // I think the usage of graphemes is actually "better", but chars().count()
     // comes out with the same output as the regular GNU wc utility, so for testability
     // and completeness, we'll go with that.
     // Ok(file.graphemes(true).count())
-    Ok(file.chars().count())
+    Ok(buf.chars().count())
 }
 
-fn count_bytes(file_path: PathBuf) -> Result<u64, std::io::Error> {
-    let input_file = std::fs::File::open(file_path)?;
-    let size_in_bytes = input_file.metadata()?.len();
+fn count_bytes<R: Read>(input: R) -> Result<usize, std::io::Error> {
+    let mut buf = BufReader::new(input);
+    let mut total_bytes = 0;
+    let mut buffer = Vec::new();
 
-    Ok(size_in_bytes)
+    while buf.read_until(b'\n', &mut buffer)? > 0 {
+        total_bytes += buffer.len();
+        buffer.clear();
+    }
+    Ok(total_bytes)
 }
 
-fn count_lines(file_path: PathBuf) -> Result<usize, std::io::Error> {
-    Ok(std::fs::read_to_string(file_path)?.lines().count())
+fn count_lines<R: Read>(input: R) -> Result<usize, std::io::Error> {
+    let buf = BufReader::new(input);
+    Ok(buf.lines().count())
 }
 
-fn count_words(file_path: PathBuf) -> Result<usize, std::io::Error> {
-    let file = std::fs::read_to_string(file_path)?;
-    let lines = file.lines();
+fn count_words<R: Read>(input: R) -> Result<usize, std::io::Error> {
+    let buf = BufReader::new(input);
+    let lines = buf.lines();
 
     let mut wc = 0;
     for line in lines {
-        wc += line.split_whitespace().count();
+        wc += line?.split_whitespace().count();
     }
 
     Ok(wc)
@@ -63,38 +73,51 @@ fn main() -> Result<(), std::io::Error> {
         chars,
     } = args;
 
-    let input_file = match input_file {
-        Some(file) => file,
-        None => PathBuf::from("-"),
+    let input_path = input_file.clone().unwrap_or(PathBuf::from("-"));
+    let mut input: Box<dyn Read + 'static> = if input_path.as_os_str() == "-" {
+        Box::new(std::io::stdin())
+    } else {
+        match std::fs::File::open(&input_path) {
+            Ok(file) => Box::new(file),
+            Err(err) => {
+                return Err(err);
+            }
+        }
     };
 
+    let filename = input_file.clone().unwrap_or("".into());
+
     if count {
-        let size_in_bytes = count_bytes(input_file.clone())?;
-        println!("{size_in_bytes} {}", input_file.clone().to_string_lossy());
+        let size_in_bytes = count_bytes(input)?;
+        println!("{size_in_bytes} {}", filename.display());
+        return Ok(());
     }
 
     if lines {
-        let lines = count_lines(input_file.clone())?;
-        println!("{lines} {}", input_file.clone().to_string_lossy());
+        let lines = count_lines(input)?;
+        println!("{lines} {}", filename.display());
+        return Ok(());
     }
 
     if words {
-        let word_count = count_words(input_file.clone())?;
-        println!("{word_count} {}", input_file.clone().to_string_lossy());
+        let word_count = count_words(input)?;
+        println!("{word_count} {}", filename.display());
+        return Ok(());
     }
 
     if chars {
-        let char_count = count_chars(input_file.clone())?;
-        println!("{char_count} {}", input_file.clone().to_string_lossy());
+        let char_count = count_chars(input)?;
+        println!("{char_count} {}", filename.display());
+        return Ok(());
     }
 
-    let line_count = count_lines(input_file.clone())?;
-    let word_count = count_words(input_file.clone())?;
-    let byte_count = count_bytes(input_file.clone())?;
+    let line_count = count_lines(input.by_ref())?;
+    let word_count = count_words(input.by_ref())?;
+    let byte_count = count_bytes(input.by_ref())?;
 
     println!(
         "{line_count} {word_count} {byte_count} {}",
-        input_file.clone().to_string_lossy()
+        filename.display()
     );
 
     Ok(())
@@ -103,47 +126,48 @@ fn main() -> Result<(), std::io::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs::File;
     const TEST_FILE: &str = "testdata/file.txt";
 
     #[test]
     fn count_bytes_returns_correctly() {
-        let file_path = PathBuf::from(TEST_FILE);
-        let expected_size: u64 = 342190;
+        let file = File::open(TEST_FILE).expect("unable to open test file");
+        let expected_size: usize = 342190;
 
-        let file_size = count_bytes(file_path).expect("unable to count_bytes");
+        let file_size = count_bytes(file).expect("unable to count_bytes");
 
         assert_eq!(file_size, expected_size);
     }
 
     #[test]
     fn count_lines_returns_correctly() {
-        let file_path = PathBuf::from(TEST_FILE);
+        let file = File::open(TEST_FILE).expect("unable to open test file");
 
         let expected: usize = 7145;
 
-        let lines = count_lines(file_path).expect("unable to count lines in file");
+        let lines = count_lines(file).expect("unable to count lines in file");
 
         assert_eq!(expected, lines);
     }
 
     #[test]
     fn count_words_returns_correctly() {
-        let file_path = PathBuf::from(TEST_FILE);
+        let file = File::open(TEST_FILE).expect("unable to open test file");
 
         let expected: usize = 58164;
 
-        let words = count_words(file_path).expect("unable to count lines in file");
+        let words = count_words(file).expect("unable to count lines in file");
 
         assert_eq!(expected, words);
     }
 
     #[test]
     fn count_chars_returns_correctly() {
-        let file_path = PathBuf::from(TEST_FILE);
+        let file = File::open(TEST_FILE).expect("unable to open test file");
 
         let expected: usize = 339292;
 
-        let chars = count_chars(file_path).expect("unable to count lines in file");
+        let chars = count_chars(file).expect("unable to count lines in file");
 
         assert_eq!(expected, chars);
     }
