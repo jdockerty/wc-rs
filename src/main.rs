@@ -71,7 +71,7 @@ fn main() -> Result<(), std::io::Error> {
     let mut input: Box<dyn Read + 'static> = if input_path.as_os_str() == "-" {
         Box::new(std::io::stdin())
     } else {
-        match std::fs::File::open(&input_path) {
+        match std::fs::File::open(input_path) {
             Ok(file) => Box::new(file),
             Err(err) => {
                 return Err(err);
